@@ -9,7 +9,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Function
 
-from op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
+from models.op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
 
 class PixelNorm(nn.Module):
     def __init__(self):
@@ -621,72 +621,6 @@ class ResBlock(nn.Module):
 
         return out
 
-class FullGenerator(nn.Module):
-    def __init__(
-        self,
-        size,
-        style_dim,
-        n_mlp,
-        channel_multiplier=2,
-        blur_kernel=[1, 3, 3, 1],
-        lr_mlp=0.01,
-        isconcat=True,
-        narrow=1,
-        device='cpu'
-    ):
-        super().__init__()
-        channels = {
-            4: int(512 * narrow),
-            8: int(512 * narrow),
-            16: int(512 * narrow),
-            32: int(512 * narrow),
-            64: int(256 * channel_multiplier * narrow),
-            128: int(128 * channel_multiplier * narrow),
-            256: int(64 * channel_multiplier * narrow),
-            512: int(32 * channel_multiplier * narrow),
-            1024: int(16 * channel_multiplier * narrow),
-            2048: int(8 * channel_multiplier * narrow)
-        }
-
-        self.log_size = int(math.log(size, 2))
-        self.generator = Generator(size, style_dim, n_mlp, channel_multiplier=channel_multiplier, blur_kernel=blur_kernel, lr_mlp=lr_mlp, isconcat=isconcat, narrow=narrow, device=device)
-        
-        conv = [ConvLayer(3, channels[size], 1, device=device)]
-        self.ecd0 = nn.Sequential(*conv)
-        in_channel = channels[size]
-
-        self.names = ['ecd%d'%i for i in range(self.log_size-1)]
-        for i in range(self.log_size, 2, -1):
-            out_channel = channels[2 ** (i - 1)]
-            #conv = [ResBlock(in_channel, out_channel, blur_kernel)]
-            conv = [ConvLayer(in_channel, out_channel, 3, downsample=True, device=device)] 
-            setattr(self, self.names[self.log_size-i+1], nn.Sequential(*conv))
-            in_channel = out_channel
-        self.final_linear = nn.Sequential(EqualLinear(channels[4] * 4 * 4, style_dim, activation='fused_lrelu', device=device))
-
-    def forward(self,
-        inputs,
-        return_latents=False,
-        inject_index=None,
-        truncation=1,
-        truncation_latent=None,
-        input_is_latent=False,
-    ):
-        noise = []
-        for i in range(self.log_outsize-self.log_insize):
-            noise.append(None)
-        for i in range(self.log_insize-1):
-            ecd = getattr(self, self.names[i])
-            inputs = ecd(inputs)
-            noise.append(inputs)
-            #print(inputs.shape)
-        inputs = inputs.view(inputs.shape[0], -1)
-        outs = self.final_linear(inputs)
-        #print(outs.shape)
-        noise = list(itertools.chain.from_iterable(itertools.repeat(x, 2) for x in noise))[::-1]
-        image, latent = self.generator([outs], return_latents, inject_index, truncation, truncation_latent, input_is_latent, noise=noise[1:])
-        return image
-
 class Discriminator(nn.Module):
     def __init__(self, size, channel_multiplier=2, blur_kernel=[1, 3, 3, 1], narrow=1, device='cpu'):
         super().__init__()
@@ -747,11 +681,11 @@ class Discriminator(nn.Module):
         out = self.final_linear(out)
         return out
 
-class FullGenerator_SR(nn.Module):
+
+class FullGenerator(nn.Module):
     def __init__(
         self,
-        in_size,
-        out_size,
+        size,
         style_dim,
         n_mlp,
         channel_multiplier=2,
@@ -772,23 +706,22 @@ class FullGenerator_SR(nn.Module):
             256: int(64 * channel_multiplier * narrow),
             512: int(32 * channel_multiplier * narrow),
             1024: int(16 * channel_multiplier * narrow),
-            2048: int(8 * channel_multiplier * narrow),
+            2048: int(8 * channel_multiplier * narrow)
         }
 
-        self.log_insize = int(math.log(in_size, 2))
-        self.log_outsize = int(math.log(out_size, 2))
-        self.generator = Generator(out_size, style_dim, n_mlp, channel_multiplier=channel_multiplier, blur_kernel=blur_kernel, lr_mlp=lr_mlp, isconcat=isconcat, narrow=narrow, device=device)
-
-        conv = [ConvLayer(3, channels[in_size], 1, device=device)]
+        self.log_size = int(math.log(size, 2))
+        self.generator = Generator(size, style_dim, n_mlp, channel_multiplier=channel_multiplier, blur_kernel=blur_kernel, lr_mlp=lr_mlp, isconcat=isconcat, narrow=narrow, device=device)
+        
+        conv = [ConvLayer(3, channels[size], 1, device=device)]
         self.ecd0 = nn.Sequential(*conv)
-        in_channel = channels[in_size]
+        in_channel = channels[size]
 
-        self.names = ['ecd%d'%i for i in range(self.log_insize-1)]
-        for i in range(self.log_insize, 2, -1):
+        self.names = ['ecd%d'%i for i in range(self.log_size-1)]
+        for i in range(self.log_size, 2, -1):
             out_channel = channels[2 ** (i - 1)]
             #conv = [ResBlock(in_channel, out_channel, blur_kernel)]
-            conv = [ConvLayer(in_channel, out_channel, 3, downsample=True, device=device)]
-            setattr(self, self.names[self.log_insize-i+1], nn.Sequential(*conv))
+            conv = [ConvLayer(in_channel, out_channel, 3, downsample=True, device=device)] 
+            setattr(self, self.names[self.log_size-i+1], nn.Sequential(*conv))
             in_channel = out_channel
         self.final_linear = nn.Sequential(EqualLinear(channels[4] * 4 * 4, style_dim, activation='fused_lrelu', device=device))
 
@@ -801,9 +734,7 @@ class FullGenerator_SR(nn.Module):
         input_is_latent=False,
     ):
         noise = []
-        for i in range(self.log_outsize-self.log_insize):
-            noise.append(None)
-        for i in range(self.log_insize-1):
+        for i in range(self.log_size-1):
             ecd = getattr(self, self.names[i])
             inputs = ecd(inputs)
             noise.append(inputs)
@@ -812,5 +743,5 @@ class FullGenerator_SR(nn.Module):
         outs = self.final_linear(inputs)
         #print(outs.shape)
         noise = list(itertools.chain.from_iterable(itertools.repeat(x, 2) for x in noise))[::-1]
-        image, latent = self.generator([outs], return_latents, inject_index, truncation, truncation_latent, input_is_latent, noise=noise[1:])
-        return image, latent
+        outs, latent = self.generator([outs], return_latents, inject_index, truncation, truncation_latent, input_is_latent, noise=noise[1:])
+        return outs

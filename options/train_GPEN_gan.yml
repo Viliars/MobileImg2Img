@@ -23,8 +23,8 @@ datasets:
 
     # data loader
     dataloader_shuffle: true
-    dataloader_batch_size: 6
-    dataloader_num_workers: 6
+    dataloader_batch_size: 5
+    dataloader_num_workers: 5
 
   test:
     name: test_dataset
@@ -35,13 +35,7 @@ datasets:
     n_channels: 3
 
 netG:
-  net_type: u2net
-  in_channels: 3
-  out_channels: 3
-
-  init_type: normal 
-  init_bn_type: uniform
-  init_gain: 0.2
+  net_type: gpen
 
 netD:
   net_type: discriminator_unet # discriminator_patchgan | discriminator_unet

@@ -32,11 +32,11 @@ def define_G(opt):
     # ----------------------------------------
     # initialize weights
     # ----------------------------------------
-    if opt['is_train']:
-        init_weights(netG,
-                     init_type=opt_net['init_type'],
-                     init_bn_type=opt_net['init_bn_type'],
-                     gain=opt_net['init_gain'])
+    # if opt['is_train']:
+    #     init_weights(netG,
+    #                  init_type=opt_net['init_type'],
+    #                  init_bn_type=opt_net['init_bn_type'],
+    #                  gain=opt_net['init_gain'])
 
     return netG
 
