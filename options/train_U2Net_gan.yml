@@ -66,6 +66,8 @@ train:
   F_use_input_norm: true
   F_use_range_norm: false
 
+  ID_lossfn_weight: 1
+
   gan_type: gan # "gan" | "ragan" | "lsgan" | "wgan" | "softplusgan"
   D_lossfn_weight: 0.1
 
@@ -95,6 +97,6 @@ train:
   D_param_strict: true
   E_param_strict: true
 
-  checkpoint_test: 3000
+  checkpoint_test: 100
   checkpoint_save: 5000
-  checkpoint_print: 100
+  checkpoint_print: 10

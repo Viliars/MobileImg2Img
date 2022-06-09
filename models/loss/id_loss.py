@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import nn
-from model_irse import Backbone
+from models.loss.model_irse import Backbone
 
 class IDLoss(nn.Module):
     def __init__(self, base_dir='./', device='cuda', ckpt_dict=None):
@@ -15,20 +15,23 @@ class IDLoss(nn.Module):
         self.face_pool = torch.nn.AdaptiveAvgPool2d((112, 112))
         self.facenet.eval()
 
-    def extract_feats(self, x):
+    def extract_feats(self, x, norm=True):
         _, _, h, w = x.shape
         assert h==w
         ss = h//256
-        x = x[:, :, 35*ss:-33*ss, 32*ss:-36*ss]  # Crop interesting region
+        if norm:
+            x = (x[:, :, 35*ss:-33*ss, 32*ss:-36*ss] - 0.5) / 0.5 # Crop interesting region
+        else:
+            x = x[:, :, 35*ss:-33*ss, 32*ss:-36*ss]
         x = self.face_pool(x)
         x_feats = self.facenet(x)
         return x_feats
 
-    def forward(self, y_hat, y, x):
+    def forward(self, y_hat, y, x, norm=True):
         n_samples = x.shape[0]
-        x_feats = self.extract_feats(x)
-        y_feats = self.extract_feats(y)  # Otherwise use the feature from there
-        y_hat_feats = self.extract_feats(y_hat)
+        x_feats = self.extract_feats(x, norm=norm)
+        y_feats = self.extract_feats(y, norm=norm)  # Otherwise use the feature from there
+        y_hat_feats = self.extract_feats(y_hat, norm=norm)
         y_feats = y_feats.detach()
         loss = 0
         sim_improvement = 0

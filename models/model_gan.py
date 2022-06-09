@@ -6,8 +6,9 @@ from torch.optim import Adam
 
 from models.select_network import define_G, define_D
 from models.model_base import ModelBase
-from models.loss import GANLoss, PerceptualLoss
-from models.loss_ssim import SSIMLoss
+from models.loss.loss import GANLoss, PerceptualLoss
+from models.loss.loss_ssim import SSIMLoss
+from models.loss.id_loss import IDLoss
 
 
 class ModelGAN(ModelBase):
@@ -138,15 +139,25 @@ class ModelGAN(ModelBase):
         else:
             print('Do not use feature loss.')
             self.F_lossfn = None
+        
+        # ------------------------------------
+        # 3) ID_loss
+        # ------------------------------------
+        if self.opt_train['ID_lossfn_weight'] > 0:
+            self.ID_lossfn_weight = self.opt_train['ID_lossfn_weight']
+            self.ID_lossfn = IDLoss(device=self.device, ckpt_dict=None)
+
+            # TODO Add dist option for ID loss
 
         # ------------------------------------
-        # 3) D_loss
+        # 4) D_loss
         # ------------------------------------
         self.D_lossfn = GANLoss(self.opt_train['gan_type'], 1.0, 0.0).to(self.device)
         self.D_lossfn_weight = self.opt_train['D_lossfn_weight']
 
         self.D_update_ratio = self.opt_train['D_update_ratio'] if self.opt_train['D_update_ratio'] else 1
         self.D_init_iters = self.opt_train['D_init_iters'] if self.opt_train['D_init_iters'] else 0
+
 
     # ----------------------------------------
     # define optimizer, G and D
@@ -217,6 +228,9 @@ class ModelGAN(ModelBase):
             if self.opt_train['F_lossfn_weight'] > 0:
                 F_loss = self.F_lossfn_weight * self.F_lossfn(self.E, self.H)
                 loss_G_total += F_loss                 # 2) VGG feature loss
+            if self.opt_train['ID_lossfn_weight'] > 0:
+                ID_loss = self.ID_lossfn_weight * self.ID_lossfn(self.E, self.H, self.L)[0]
+                loss_G_total += ID_loss                # 3) ID loss
 
             if self.opt['train']['gan_type'] in ['gan', 'lsgan', 'wgan', 'softplusgan']:
                 pred_g_fake = self.netD(self.E)
@@ -227,7 +241,7 @@ class ModelGAN(ModelBase):
                 D_loss = self.D_lossfn_weight * (
                         self.D_lossfn(pred_d_real - torch.mean(pred_g_fake, 0, True), False) +
                         self.D_lossfn(pred_g_fake - torch.mean(pred_d_real, 0, True), True)) / 2
-            loss_G_total += D_loss                    # 3) GAN loss
+            loss_G_total += D_loss                    # 4) GAN loss
 
             loss_G_total.backward()
             self.G_optimizer.step()
@@ -276,6 +290,8 @@ class ModelGAN(ModelBase):
                 self.log_dict['G_loss'] = G_loss.item()
             if self.opt_train['F_lossfn_weight'] > 0:
                 self.log_dict['F_loss'] = F_loss.item()
+            if self.opt_train['ID_lossfn_weight'] > 0:
+                self.log_dict['ID_loss'] = ID_loss.item()
             self.log_dict['D_loss'] = D_loss.item()
 
         #self.log_dict['l_d_real'] = l_d_real.item()
