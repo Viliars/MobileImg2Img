@@ -390,21 +390,21 @@ class U2Net(nn.Module):
         hx6up = self.up6(mid)
 
         #-------------------- decoder --------------------
-        hx5d = self.stage5d(torch.cat((hx6up, hx5*mask5), dim=1))
+        hx5d = self.stage5d(torch.cat((hx6up, hx4*mask5), dim=1))
         hx5dup = self.up5(hx5d)
 
-        hx4d = self.stage4d(torch.cat((hx5dup, hx4*mask4), dim=1))
+        hx4d = self.stage4d(torch.cat((hx5dup, hx3*mask4), dim=1))
         hx4dup = self.up4(hx4d)
 
-        hx3d = self.stage3d(torch.cat((hx4dup, hx3*mask3), dim=1))
+        hx3d = self.stage3d(torch.cat((hx4dup, hx2*mask3), dim=1))
         hx3dup = self.up3(hx3d)
 
-        hx2d = self.stage2d(torch.cat((hx3dup, hx2*mask2), dim=1))
+        hx2d = self.stage2d(torch.cat((hx3dup, hx1*mask2), dim=1))
         hx2dup = self.up2(hx2d)
 
-        hx1d = self.stage1d(torch.cat((hx2dup, hx1*mask1), dim=1))
+        hx1d = self.stage1d(torch.cat((hx2dup, hx_in*mask1), dim=1))
 
-        result = self.conv_last(hx1d + hx_in)
+        result = self.conv_last(hx1d)
 
         return result
 

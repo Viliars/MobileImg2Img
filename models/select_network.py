@@ -23,6 +23,9 @@ def define_G(opt):
     elif net_type == "u2net":
         from models.network_u2net import U2Net as net
         netG = net(in_channels=opt_net["in_channels"], out_channels=opt_net["out_channels"])
+    elif net_type == "u2masknet":
+        from models.network_u2masknet import U2Net as net
+        netG = net(in_channels=opt_net["in_channels"], out_channels=opt_net["out_channels"])
     elif net_type == "gpen":
         from models.network_gpen import FullGenerator
         netG = FullGenerator(512, 512, 8, 2, narrow=1)
@@ -32,11 +35,11 @@ def define_G(opt):
     # ----------------------------------------
     # initialize weights
     # ----------------------------------------
-    # if opt['is_train']:
-    #     init_weights(netG,
-    #                  init_type=opt_net['init_type'],
-    #                  init_bn_type=opt_net['init_bn_type'],
-    #                  gain=opt_net['init_gain'])
+    if opt['is_train']:
+        init_weights(netG,
+                     init_type=opt_net['init_type'],
+                     init_bn_type=opt_net['init_bn_type'],
+                     gain=opt_net['init_gain'])
 
     return netG
 
