@@ -20,6 +20,12 @@ def define_G(opt):
     if net_type == "unet":
         from models.network_unet import UNet as net
         netG = net(in_channels=opt_net["in_channels"], out_channels=opt_net["out_channels"], dim=opt_net["dim"])
+    elif net_type == "u2net":
+        from models.network_u2net import U2Net as net
+        netG = net(in_channels=opt_net["in_channels"], out_channels=opt_net["out_channels"])
+    elif net_type == "gpen":
+        from models.network_gpen import FullGenerator
+        netG = FullGenerator(512, 512, 8, 2, narrow=1)
     else:
         raise NotImplementedError('netG [{:s}] is not found.'.format(net_type))
 

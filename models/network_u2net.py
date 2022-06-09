@@ -287,9 +287,9 @@ class RSU4(nn.Module):
         return hx1d + hx_in
 
 
-class LinearMapper(nn.Module):
+class Mapper(nn.Module):
     def __init__(self, activation=nn.ReLU):
-        super(LinearMapper, self).__init__()
+        super(Mapper, self).__init__()
         self.net = nn.Sequential(
         nn.Flatten(),
         nn.Linear(16384, 512),
@@ -336,7 +336,7 @@ class U2Net(nn.Module):
 
         self.stage6 = RSU4(64, 16, 64)
 
-        self.mapper = LinearMapper()
+        self.mapper = Mapper()
 
         # decoder
         self.up6 = nn.ConvTranspose2d(64, 64, 2, 2)
